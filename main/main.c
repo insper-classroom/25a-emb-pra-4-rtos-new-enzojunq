@@ -10,7 +10,7 @@
 
 #define TRIGGER_PIN 2              
 #define ECHO_PIN 3                 
-#define TRIGGER_PULSE_US 10        
+#define TRIGGER_PULSE_US 10/1000        
 #define MEASUREMENT_INTERVAL_MS 60 
 #define MAX_PULSE_US 30000         
 #define TIME_TO_CM 58.0            
@@ -21,7 +21,7 @@ QueueHandle_t xQueueTime;
 QueueHandle_t xQueueDistance;        
 
 
-static uint32_t rising_time = 0;
+volatile uint32_t rising_time = 0;
 
 
 void pin_callback(uint gpio, uint32_t events) {
@@ -43,7 +43,7 @@ void trigger_task(void *p) {
 
     while (1) {
         gpio_put(TRIGGER_PIN, 1);
-        sleep_us(TRIGGER_PULSE_US);
+        vTaskDelay(pdMS_TO_TICKS(TRIGGER_PULSE_US));
         gpio_put(TRIGGER_PIN, 0);
 
 
