@@ -19,20 +19,23 @@
 SemaphoreHandle_t xSemaphoreTrigger; 
 QueueHandle_t xQueueTime;            
 QueueHandle_t xQueueDistance;        
+QueueHandle_t xQueueRisingTime;     
 
 
-volatile uint32_t rising_time = 0;
-
-
-void pin_callback(uint gpio, uint32_t events) {
-    uint32_t now = to_us_since_boot(get_absolute_time());
+void pin_callback(uint gpio, int events) {
+    int now = to_us_since_boot(get_absolute_time());
+    int rising_time_local;
     
     if (events & GPIO_IRQ_EDGE_RISE) {
-        rising_time = now;
+        
+        xQueueSendFromISR(xQueueRisingTime, &now, 0);
     } else if (events & GPIO_IRQ_EDGE_FALL) {
-        uint32_t pulse_duration = now - rising_time;
-
-        xQueueSendFromISR(xQueueTime, &pulse_duration, 0);
+        
+        if (xQueueReceiveFromISR(xQueueRisingTime, &rising_time_local, 0) == pdPASS) {
+            int pulse_duration = now - rising_time_local;
+            
+            xQueueSendFromISR(xQueueTime, &pulse_duration, 0);
+        }
     }
 }
 
@@ -117,6 +120,8 @@ int main() {
                                        true,
                                        &pin_callback);
 
+
+    xQueueRisingTime = xQueueCreate(10, sizeof(uint32_t));
     xQueueTime = xQueueCreate(10, sizeof(uint32_t));
     xQueueDistance = xQueueCreate(10, sizeof(float));
     xSemaphoreTrigger = xSemaphoreCreateBinary();
